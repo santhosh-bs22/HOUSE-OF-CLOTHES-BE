@@ -1,10 +1,7 @@
 const productServices = require("../services/product.services.js");
 
 class ProductController {
-  /**
-   * POST /api/admin/products
-   * Admin: Add new product (saves images to Cloudinary)
-   */
+  // Admin: create product
   async createProduct(req, res) {
     try {
       const { title, description, price, stock, brand, category } = req.body;
@@ -16,75 +13,20 @@ class ProductController {
       }
 
       const adminId = req.user.id;
-
-      const product = await productServices.createProduct(
-        req.body,
-        req.files,
-        adminId
-      );
+      const product = await productServices.createProduct(req.body, req.files, adminId);
 
       return res.status(201).json({
         success: true,
-        message: "Product created successfully with Cloudinary images",
+        message: "Product created successfully",
         data: product
       });
     } catch (error) {
       console.error("Create product error:", error.message);
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 
-  /**
-   * GET /api/products
-   * Customer fetch: only active products
-   */
-  async getCustomerProducts(req, res) {
-    try {
-      const products = await productServices.getCustomerProducts(req.query);
-      return res.status(200).json({
-        success: true,
-        message: "Products fetched successfully for customer",
-        count: products.length,
-        data: products
-      });
-    } catch (error) {
-      console.error("Fetch products error:", error.message);
-      return res.status(500).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  /**
-   * GET /api/products/:id
-   * Customer fetch single product
-   */
-  async getProductById(req, res) {
-    try {
-      const { id } = req.params;
-      const product = await productServices.getProductById(id);
-      return res.status(200).json({
-        success: true,
-        message: "Product fetched successfully",
-        data: product
-      });
-    } catch (error) {
-      console.error("Fetch product by ID error:", error.message);
-      return res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  /**
-   * GET /api/admin/products
-   * Admin fetch all products
-   */
+  // Admin: get all products
   async getAllAdminProducts(req, res) {
     try {
       const products = await productServices.getAllAdminProducts();
@@ -95,18 +37,26 @@ class ProductController {
         data: products
       });
     } catch (error) {
-      console.error("Admin fetch products error:", error.message);
-      return res.status(500).json({
-        success: false,
-        message: error.message
-      });
+      return res.status(500).json({ success: false, message: error.message });
     }
   }
 
-  /**
-   * PUT /api/admin/products/:id
-   * Admin update product
-   */
+  // Admin: get single product
+  async getAdminProductById(req, res) {
+    try {
+      const { id } = req.params;
+      const product = await productServices.getAdminProductById(id);
+      return res.status(200).json({
+        success: true,
+        message: "Product fetched successfully",
+        data: product
+      });
+    } catch (error) {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+  }
+
+  // Admin: update product
   async updateProduct(req, res) {
     try {
       const { id } = req.params;
@@ -117,18 +67,11 @@ class ProductController {
         data: updated
       });
     } catch (error) {
-      console.error("Update product error:", error.message);
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 
-  /**
-   * DELETE /api/admin/products/:id
-   * Admin delete product
-   */
+  // Admin: delete product
   async deleteProduct(req, res) {
     try {
       const { id } = req.params;
@@ -139,11 +82,50 @@ class ProductController {
         data: deleted
       });
     } catch (error) {
-      console.error("Delete product error:", error.message);
-      return res.status(400).json({
-        success: false,
-        message: error.message
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  // Customer: get products (with search, category, sort, page, limit)
+  async getCustomerProducts(req, res) {
+    try {
+      const result = await productServices.getCustomerProducts(req.query);
+      return res.status(200).json({
+        success: true,
+        message: "Products fetched successfully",
+        ...result
       });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  // Customer: get product details by ID
+  async getProductById(req, res) {
+    try {
+      const { id } = req.params;
+      const product = await productServices.getProductById(id);
+      return res.status(200).json({
+        success: true,
+        message: "Product fetched successfully",
+        data: product
+      });
+    } catch (error) {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+  }
+
+  // Customer: get distinct categories
+  async getCategories(req, res) {
+    try {
+      const categories = await productServices.getAllCategories();
+      return res.status(200).json({
+        success: true,
+        message: "Categories fetched successfully",
+        data: categories
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
     }
   }
 }

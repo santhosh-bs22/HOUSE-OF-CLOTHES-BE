@@ -3,7 +3,6 @@ const { uploadBufferToCloudinary, uploadUrlToCloudinary } = require("./cloudinar
 const mongoose = require("mongoose");
 
 class ProductServices {
-
   async createProduct(data, files, adminId) {
     let thumbnailUrl = data.thumbnail || "";
     let rawImagesList = [];
@@ -20,59 +19,74 @@ class ProductServices {
 
     let imagesList = [];
 
+    // 1. Direct file upload via Multer (if present)
     if (files) {
       if (files.thumbnail && files.thumbnail.length > 0) {
-        const thumbFile = files.thumbnail[0];
-        thumbnailUrl = await uploadBufferToCloudinary(thumbFile.buffer);
+        thumbnailUrl = await uploadBufferToCloudinary(files.thumbnail[0].buffer);
       }
-
       if (files.images && files.images.length > 0) {
-        for (const imgFile of files.images) {
-          const uploadedUrl = await uploadBufferToCloudinary(imgFile.buffer);
-          imagesList.push(uploadedUrl);
+        for (const img of files.images) {
+          const uploaded = await uploadBufferToCloudinary(img.buffer);
+          imagesList.push(uploaded);
         }
       }
     }
 
+    // 2. Process URLs through Cloudinary
     if (thumbnailUrl && thumbnailUrl.startsWith("http") && !thumbnailUrl.includes("res.cloudinary.com")) {
       try {
         thumbnailUrl = await uploadUrlToCloudinary(thumbnailUrl);
       } catch (err) {
-        console.warn(`Could not upload thumbnail link to Cloudinary, skipping: ${err.message}`);
+        console.warn(`Could not upload thumbnail to Cloudinary, skipping: ${err.message}`);
         thumbnailUrl = "";
       }
     }
 
-    // Image links conversion
     for (const imgUrl of rawImagesList) {
       if (typeof imgUrl === "string" && imgUrl.startsWith("http")) {
         if (imgUrl.includes("res.cloudinary.com")) {
-          // Already on Cloudinary
           imagesList.push(imgUrl);
         } else {
           try {
             const uploadedUrl = await uploadUrlToCloudinary(imgUrl);
             imagesList.push(uploadedUrl);
           } catch (err) {
-            console.warn(`Image link failed on Cloudinary, skipping broken link: ${err.message}`);
-            // Skipped completely
+            console.warn(`Skipping invalid image link: ${err.message}`);
           }
         }
-      } else if (typeof imgUrl === "string" && imgUrl.trim() !== "") {
+      } else if (typeof imgUrl === "string" && imgUrl.trim()) {
         imagesList.push(imgUrl);
       }
     }
 
-    // Fallback: If thumbnail failed or was not provided, use first valid image
     if (!thumbnailUrl && imagesList.length > 0) {
       thumbnailUrl = imagesList[0];
     }
 
-    if (!thumbnailUrl) {
-      throw new Error("Product requires at least one valid image or accessible image URL for the thumbnail");
+    // Parse features and specifications if provided as string or object
+    let features = [];
+    if (typeof data.features === "string") {
+      try {
+        features = JSON.parse(data.features);
+      } catch (e) {
+        features = data.features.split(",").map(f => f.trim()).filter(Boolean);
+      }
+    } else if (Array.isArray(data.features)) {
+      features = data.features;
     }
 
-    const product = await Product.create({
+    let specifications = {};
+    if (typeof data.specifications === "string") {
+      try {
+        specifications = JSON.parse(data.specifications);
+      } catch (e) {
+        specifications = {};
+      }
+    } else if (typeof data.specifications === "object" && data.specifications !== null) {
+      specifications = data.specifications;
+    }
+
+    return await Product.create({
       title: data.title,
       description: data.description,
       price: Number(data.price),
@@ -80,23 +94,88 @@ class ProductServices {
       rating: data.rating !== undefined ? Number(data.rating) : 0,
       stock: Number(data.stock),
       brand: data.brand,
-      category: data.category,
+      category: data.category.toLowerCase(),
       thumbnail: thumbnailUrl,
       images: imagesList,
+      features,
+      specifications,
       createdBy: adminId,
     });
+  }
 
+  async getAllAdminProducts() {
+    return await Product.find().populate("createdBy", "name email").sort({ createdAt: -1 });
+  }
+
+  async getAdminProductById(id) {
+    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid Product ID format");
+    const product = await Product.findById(id).populate("createdBy", "name email");
+    if (!product) throw new Error("Product not found");
     return product;
   }
 
-  /**
-   * Customer fetch: only active products
-   */
+  async updateProduct(id, data, files) {
+    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid Product ID format");
+    const product = await Product.findById(id);
+    if (!product) throw new Error("Product not found");
+
+    if (files) {
+      if (files.thumbnail && files.thumbnail.length > 0) {
+        product.thumbnail = await uploadBufferToCloudinary(files.thumbnail[0].buffer);
+      }
+      if (files.images && files.images.length > 0) {
+        for (const img of files.images) {
+          const uploaded = await uploadBufferToCloudinary(img.buffer);
+          product.images.push(uploaded);
+        }
+      }
+    }
+
+    if (data.title) product.title = data.title;
+    if (data.description) product.description = data.description;
+    if (data.price !== undefined) product.price = Number(data.price);
+    if (data.discountPercentage !== undefined) product.discountPercentage = Number(data.discountPercentage);
+    if (data.rating !== undefined) product.rating = Number(data.rating);
+    if (data.stock !== undefined) product.stock = Number(data.stock);
+    if (data.brand) product.brand = data.brand;
+    if (data.category) product.category = data.category.toLowerCase();
+    if (data.isActive !== undefined) product.isActive = data.isActive;
+
+    if (data.features) {
+      product.features = typeof data.features === "string" ? JSON.parse(data.features) : data.features;
+    }
+    if (data.specifications) {
+      product.specifications = typeof data.specifications === "string" ? JSON.parse(data.specifications) : data.specifications;
+    }
+
+    if (data.thumbnail && (!files || !files.thumbnail)) {
+      if (data.thumbnail.startsWith("http") && !data.thumbnail.includes("res.cloudinary.com")) {
+        try {
+          product.thumbnail = await uploadUrlToCloudinary(data.thumbnail);
+        } catch (e) {
+          product.thumbnail = data.thumbnail;
+        }
+      } else {
+        product.thumbnail = data.thumbnail;
+      }
+    }
+
+    await product.save();
+    return product;
+  }
+
+  async deleteProduct(id) {
+    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid Product ID format");
+    const product = await Product.findByIdAndDelete(id);
+    if (!product) throw new Error("Product not found");
+    return product;
+  }
+
   async getCustomerProducts(query = {}) {
     const filter = { isActive: true };
 
     if (query.category) {
-      filter.category = new RegExp(query.category, "i");
+      filter.category = query.category.toLowerCase();
     }
     if (query.brand) {
       filter.brand = new RegExp(query.brand, "i");
@@ -110,96 +189,47 @@ class ProductServices {
       ];
     }
 
-    const products = await Product.find(filter).sort({ createdAt: -1 });
-    return products;
+    // Sorting
+    let sortOptions = { createdAt: -1 };
+    if (query.sort) {
+      if (query.sort === "price_asc") sortOptions = { price: 1 };
+      else if (query.sort === "price_desc") sortOptions = { price: -1 };
+      else if (query.sort === "rating_desc") sortOptions = { rating: -1 };
+      else if (query.sort === "newest") sortOptions = { createdAt: -1 };
+    }
+
+    // Pagination
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 12;
+    const skip = (page - 1) * limit;
+
+    const total = await Product.countDocuments(filter);
+    const products = await Product.find(filter)
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limit);
+
+    return {
+      products,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
   }
 
-  /**
-   * Get single product by ID (Customer fetch)
-   */
   async getProductById(id) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid Product ID format");
-    }
-
+    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid Product ID format");
     const product = await Product.findOne({ _id: id, isActive: true });
-    if (!product) {
-      throw new Error("Product not found");
-    }
+    if (!product) throw new Error("Product not found");
     return product;
   }
 
-  /**
-   * Admin: Get all products
-   */
-  async getAllAdminProducts() {
-    return await Product.find().populate("createdBy", "name email").sort({ createdAt: -1 });
-  }
-
-  /**
-   * Admin: Update product
-   */
-  async updateProduct(id, data, files) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid Product ID format");
-    }
-
-    const product = await Product.findById(id);
-    if (!product) {
-      throw new Error("Product not found");
-    }
-
-    if (files) {
-      if (files.thumbnail && files.thumbnail.length > 0) {
-        const thumbFile = files.thumbnail[0];
-        product.thumbnail = await uploadBufferToCloudinary(thumbFile.buffer);
-      }
-
-      if (files.images && files.images.length > 0) {
-        for (const imgFile of files.images) {
-          const uploadedUrl = await uploadBufferToCloudinary(imgFile.buffer);
-          product.images.push(uploadedUrl);
-        }
-      }
-    }
-
-    if (data.title) product.title = data.title;
-    if (data.description) product.description = data.description;
-    if (data.price !== undefined) product.price = Number(data.price);
-    if (data.discountPercentage !== undefined) product.discountPercentage = Number(data.discountPercentage);
-    if (data.rating !== undefined) product.rating = Number(data.rating);
-    if (data.stock !== undefined) product.stock = Number(data.stock);
-    if (data.brand) product.brand = data.brand;
-    if (data.category) product.category = data.category;
-    if (data.thumbnail && (!files || !files.thumbnail)) {
-      if (data.thumbnail.startsWith("http") && !data.thumbnail.includes("res.cloudinary.com")) {
-        try {
-          product.thumbnail = await uploadUrlToCloudinary(data.thumbnail);
-        } catch (e) {
-          console.warn("Could not upload updated thumbnail to Cloudinary, skipping");
-        }
-      } else {
-        product.thumbnail = data.thumbnail;
-      }
-    }
-    if (data.isActive !== undefined) product.isActive = data.isActive;
-
-    await product.save();
-    return product;
-  }
-
-  /**
-   * Admin: Delete product
-   */
-  async deleteProduct(id) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid Product ID format");
-    }
-    const product = await Product.findByIdAndDelete(id);
-    if (!product) {
-      throw new Error("Product not found");
-    }
-    return product;
+  async getAllCategories() {
+    const categories = await Product.distinct("category", { isActive: true });
+    return categories;
   }
 }
 

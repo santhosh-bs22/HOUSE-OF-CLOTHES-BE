@@ -7,10 +7,11 @@ const authorizeRoles = require("../middleware/role.middleware");
 const upload = require("../middleware/upload.middleware");
 const { Roles } = require("../constants/roles");
 
+// Admin Auth Endpoints
+router.post("/auth/login", adminController.login);
 router.post("/initial-setup", adminController.initialSetup);
 
-router.post("/login", adminController.login);
-
+// Protected Admin Product Routes
 router.use(authMiddleware);
 router.use(authorizeRoles(Roles.ADMIN));
 
@@ -18,20 +19,21 @@ router.post(
   "/products",
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
-    { name: "images", maxCount: 10 },
+    { name: "images", maxCount: 10 }
   ]),
-  productController.createProduct,
+  productController.createProduct
 );
 
 router.get("/products", productController.getAllAdminProducts);
+router.get("/products/:id", productController.getAdminProductById);
 
 router.put(
   "/products/:id",
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
-    { name: "images", maxCount: 10 },
+    { name: "images", maxCount: 10 }
   ]),
-  productController.updateProduct,
+  productController.updateProduct
 );
 
 router.delete("/products/:id", productController.deleteProduct);

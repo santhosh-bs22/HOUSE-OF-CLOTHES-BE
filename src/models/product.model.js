@@ -44,6 +44,7 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: [true, "Category is required"],
       trim: true,
+      lowercase: true,
     },
     thumbnail: {
       type: String,
@@ -53,7 +54,15 @@ const productSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    // Track the admin who created the product
+    features: {
+      type: [String],
+      default: [],
+    },
+    specifications: {
+      type: Map,
+      of: String,
+      default: {},
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -65,7 +74,7 @@ const productSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 const Product = mongoose.model("Product", productSchema);
