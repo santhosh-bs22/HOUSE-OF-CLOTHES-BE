@@ -1,5 +1,8 @@
 const Product = require("../models/product.model");
-const { uploadBufferToCloudinary, uploadUrlToCloudinary } = require("./cloudinary.services");
+const {
+  uploadBufferToCloudinary,
+  uploadUrlToCloudinary,
+} = require("./cloudinary.services");
 const mongoose = require("mongoose");
 
 class ProductServices {
@@ -11,7 +14,10 @@ class ProductServices {
       try {
         rawImagesList = JSON.parse(data.images);
       } catch (e) {
-        rawImagesList = data.images.split(",").map(s => s.trim()).filter(Boolean);
+        rawImagesList = data.images
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
       }
     } else if (Array.isArray(data.images)) {
       rawImagesList = [...data.images];
@@ -19,10 +25,11 @@ class ProductServices {
 
     let imagesList = [];
 
-    // 1. Direct file upload via Multer (if present)
     if (files) {
       if (files.thumbnail && files.thumbnail.length > 0) {
-        thumbnailUrl = await uploadBufferToCloudinary(files.thumbnail[0].buffer);
+        thumbnailUrl = await uploadBufferToCloudinary(
+          files.thumbnail[0].buffer,
+        );
       }
       if (files.images && files.images.length > 0) {
         for (const img of files.images) {
@@ -32,12 +39,17 @@ class ProductServices {
       }
     }
 
-    // 2. Process URLs through Cloudinary
-    if (thumbnailUrl && thumbnailUrl.startsWith("http") && !thumbnailUrl.includes("res.cloudinary.com")) {
+    if (
+      thumbnailUrl &&
+      thumbnailUrl.startsWith("http") &&
+      !thumbnailUrl.includes("res.cloudinary.com")
+    ) {
       try {
         thumbnailUrl = await uploadUrlToCloudinary(thumbnailUrl);
       } catch (err) {
-        console.warn(`Could not upload thumbnail to Cloudinary, skipping: ${err.message}`);
+        console.warn(
+          `Could not upload thumbnail to Cloudinary, skipping: ${err.message}`,
+        );
         thumbnailUrl = "";
       }
     }
@@ -63,13 +75,15 @@ class ProductServices {
       thumbnailUrl = imagesList[0];
     }
 
-    // Parse features and specifications if provided as string or object
     let features = [];
     if (typeof data.features === "string") {
       try {
         features = JSON.parse(data.features);
       } catch (e) {
-        features = data.features.split(",").map(f => f.trim()).filter(Boolean);
+        features = data.features
+          .split(",")
+          .map((f) => f.trim())
+          .filter(Boolean);
       }
     } else if (Array.isArray(data.features)) {
       features = data.features;
@@ -82,7 +96,10 @@ class ProductServices {
       } catch (e) {
         specifications = {};
       }
-    } else if (typeof data.specifications === "object" && data.specifications !== null) {
+    } else if (
+      typeof data.specifications === "object" &&
+      data.specifications !== null
+    ) {
       specifications = data.specifications;
     }
 
@@ -90,7 +107,10 @@ class ProductServices {
       title: data.title,
       description: data.description,
       price: Number(data.price),
-      discountPercentage: data.discountPercentage !== undefined ? Number(data.discountPercentage) : 0,
+      discountPercentage:
+        data.discountPercentage !== undefined
+          ? Number(data.discountPercentage)
+          : 0,
       rating: data.rating !== undefined ? Number(data.rating) : 0,
       stock: Number(data.stock),
       brand: data.brand,
@@ -104,24 +124,33 @@ class ProductServices {
   }
 
   async getAllAdminProducts() {
-    return await Product.find().populate("createdBy", "name email").sort({ createdAt: -1 });
+    return await Product.find()
+      .populate("createdBy", "name email")
+      .sort({ createdAt: -1 });
   }
 
   async getAdminProductById(id) {
-    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid Product ID format");
-    const product = await Product.findById(id).populate("createdBy", "name email");
+    if (!mongoose.Types.ObjectId.isValid(id))
+      throw new Error("Invalid Product ID format");
+    const product = await Product.findById(id).populate(
+      "createdBy",
+      "name email",
+    );
     if (!product) throw new Error("Product not found");
     return product;
   }
 
   async updateProduct(id, data, files) {
-    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid Product ID format");
+    if (!mongoose.Types.ObjectId.isValid(id))
+      throw new Error("Invalid Product ID format");
     const product = await Product.findById(id);
     if (!product) throw new Error("Product not found");
 
     if (files) {
       if (files.thumbnail && files.thumbnail.length > 0) {
-        product.thumbnail = await uploadBufferToCloudinary(files.thumbnail[0].buffer);
+        product.thumbnail = await uploadBufferToCloudinary(
+          files.thumbnail[0].buffer,
+        );
       }
       if (files.images && files.images.length > 0) {
         for (const img of files.images) {
@@ -134,7 +163,8 @@ class ProductServices {
     if (data.title) product.title = data.title;
     if (data.description) product.description = data.description;
     if (data.price !== undefined) product.price = Number(data.price);
-    if (data.discountPercentage !== undefined) product.discountPercentage = Number(data.discountPercentage);
+    if (data.discountPercentage !== undefined)
+      product.discountPercentage = Number(data.discountPercentage);
     if (data.rating !== undefined) product.rating = Number(data.rating);
     if (data.stock !== undefined) product.stock = Number(data.stock);
     if (data.brand) product.brand = data.brand;
@@ -142,14 +172,23 @@ class ProductServices {
     if (data.isActive !== undefined) product.isActive = data.isActive;
 
     if (data.features) {
-      product.features = typeof data.features === "string" ? JSON.parse(data.features) : data.features;
+      product.features =
+        typeof data.features === "string"
+          ? JSON.parse(data.features)
+          : data.features;
     }
     if (data.specifications) {
-      product.specifications = typeof data.specifications === "string" ? JSON.parse(data.specifications) : data.specifications;
+      product.specifications =
+        typeof data.specifications === "string"
+          ? JSON.parse(data.specifications)
+          : data.specifications;
     }
 
     if (data.thumbnail && (!files || !files.thumbnail)) {
-      if (data.thumbnail.startsWith("http") && !data.thumbnail.includes("res.cloudinary.com")) {
+      if (
+        data.thumbnail.startsWith("http") &&
+        !data.thumbnail.includes("res.cloudinary.com")
+      ) {
         try {
           product.thumbnail = await uploadUrlToCloudinary(data.thumbnail);
         } catch (e) {
@@ -165,7 +204,8 @@ class ProductServices {
   }
 
   async deleteProduct(id) {
-    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid Product ID format");
+    if (!mongoose.Types.ObjectId.isValid(id))
+      throw new Error("Invalid Product ID format");
     const product = await Product.findByIdAndDelete(id);
     if (!product) throw new Error("Product not found");
     return product;
@@ -185,7 +225,7 @@ class ProductServices {
         { title: new RegExp(query.search, "i") },
         { description: new RegExp(query.search, "i") },
         { brand: new RegExp(query.search, "i") },
-        { category: new RegExp(query.search, "i") }
+        { category: new RegExp(query.search, "i") },
       ];
     }
 
@@ -215,13 +255,14 @@ class ProductServices {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
   async getProductById(id) {
-    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid Product ID format");
+    if (!mongoose.Types.ObjectId.isValid(id))
+      throw new Error("Invalid Product ID format");
     const product = await Product.findOne({ _id: id, isActive: true });
     if (!product) throw new Error("Product not found");
     return product;

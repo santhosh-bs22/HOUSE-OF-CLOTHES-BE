@@ -9,4 +9,3 @@ router.get("/me", userController.getProfile);
 router.put("/me", userController.updateProfile);
 
 module.exports = router;
-

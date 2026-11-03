@@ -10,4 +10,3 @@ router.post("/items", wishlistController.addItem);
 router.delete("/items/:productId", wishlistController.removeItem);
 
 module.exports = router;
-

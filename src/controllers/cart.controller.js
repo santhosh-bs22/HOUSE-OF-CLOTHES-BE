@@ -24,7 +24,11 @@ class CartController {
         });
       }
 
-      const cart = await cartServices.addItem(req.user.id, productId, quantity || 1);
+      const cart = await cartServices.addItem(
+        req.user.id,
+        productId,
+        quantity || 1,
+      );
       return res.status(200).json({
         success: true,
         message: "Item added to cart",
@@ -46,7 +50,11 @@ class CartController {
         });
       }
 
-      const cart = await cartServices.updateItemQuantity(req.user.id, productId, quantity);
+      const cart = await cartServices.updateItemQuantity(
+        req.user.id,
+        productId,
+        quantity,
+      );
       return res.status(200).json({
         success: true,
         message: "Cart updated successfully",
@@ -73,4 +81,3 @@ class CartController {
 }
 
 module.exports = new CartController();
-

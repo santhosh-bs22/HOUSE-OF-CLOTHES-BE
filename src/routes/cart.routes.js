@@ -11,4 +11,3 @@ router.put("/items/:productId", cartController.updateItem);
 router.delete("/items/:productId", cartController.removeItem);
 
 module.exports = router;
-

@@ -38,7 +38,10 @@ class WishlistController {
   async removeItem(req, res) {
     try {
       const { productId } = req.params;
-      const wishlist = await wishlistServices.removeItem(req.user.id, productId);
+      const wishlist = await wishlistServices.removeItem(
+        req.user.id,
+        productId,
+      );
       return res.status(200).json({
         success: true,
         message: "Item removed from wishlist",
@@ -51,4 +54,3 @@ class WishlistController {
 }
 
 module.exports = new WishlistController();
-

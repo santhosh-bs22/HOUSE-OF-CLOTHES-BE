@@ -9,4 +9,3 @@ router.post("/", orderController.placeOrder);
 router.get("/my-orders", orderController.getMyOrders);
 
 module.exports = router;
-

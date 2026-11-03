@@ -4,7 +4,9 @@ const mongoose = require("mongoose");
 
 class WishlistServices {
   async getWishlist(userId) {
-    let wishlist = await Wishlist.findOne({ user: userId }).populate("products");
+    let wishlist = await Wishlist.findOne({ user: userId }).populate(
+      "products",
+    );
     if (!wishlist) {
       wishlist = await Wishlist.create({ user: userId, products: [] });
     }
@@ -25,7 +27,7 @@ class WishlistServices {
     }
 
     const alreadyAdded = wishlist.products.some(
-      (id) => id.toString() === productId.toString()
+      (id) => id.toString() === productId.toString(),
     );
 
     if (!alreadyAdded) {
@@ -45,7 +47,7 @@ class WishlistServices {
     if (!wishlist) throw new Error("Wishlist not found");
 
     wishlist.products = wishlist.products.filter(
-      (id) => id.toString() !== productId.toString()
+      (id) => id.toString() !== productId.toString(),
     );
 
     await wishlist.save();
@@ -54,4 +56,3 @@ class WishlistServices {
 }
 
 module.exports = new WishlistServices();
-

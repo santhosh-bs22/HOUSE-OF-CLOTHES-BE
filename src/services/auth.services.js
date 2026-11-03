@@ -69,4 +69,3 @@ class AuthServices {
 }
 
 module.exports = new AuthServices();
-

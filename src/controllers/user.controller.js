@@ -16,7 +16,10 @@ class UserController {
 
   async updateProfile(req, res) {
     try {
-      const updatedUser = await userServices.updateProfile(req.user.id, req.body);
+      const updatedUser = await userServices.updateProfile(
+        req.user.id,
+        req.body,
+      );
       return res.status(200).json({
         success: true,
         message: "Profile updated successfully",
@@ -29,4 +32,3 @@ class UserController {
 }
 
 module.exports = new UserController();
-
