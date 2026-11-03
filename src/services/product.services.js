@@ -217,6 +217,19 @@ class ProductServices {
     if (query.category) {
       filter.category = query.category.toLowerCase();
     }
+    const minPrice =
+      query.minPrice !== undefined && query.minPrice !== ""
+        ? Number(query.minPrice)
+        : NaN;
+    const maxPrice =
+      query.maxPrice !== undefined && query.maxPrice !== ""
+        ? Number(query.maxPrice)
+        : NaN;
+    if (Number.isFinite(minPrice) || Number.isFinite(maxPrice)) {
+      filter.price = {};
+      if (Number.isFinite(minPrice)) filter.price.$gte = minPrice;
+      if (Number.isFinite(maxPrice)) filter.price.$lte = maxPrice;
+    }
     if (query.brand) {
       filter.brand = new RegExp(query.brand, "i");
     }
